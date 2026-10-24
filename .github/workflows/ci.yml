@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  gate-and-docker:
+    # Exercises the whole release path on synthetic data:
+    # train -> quality gate -> export -> docker build -> run -> API smoke test
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e .
+      - name: Train on synthetic data
+        run: python -m sentinelml.train --synthetic --fast
+      - name: Quality gate (relaxed thresholds, synthetic data is only a plumbing check)
+        run: python -m sentinelml.gate promote --min-pr-auc 0.90 --fpr-slack 0.05 --max-latency-ms 1000
+      - name: Export champion
+        run: python -m sentinelml.export
+      - name: Build image
+        run: docker build -t sentinelml-api .
+      - name: Run container
+        run: docker run -d --name api -p 8000:8000 -v "$PWD/exported_model:/models/champion:ro" sentinelml-api
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health && exit 0
+            sleep 2
+          done
+          docker logs api
+          exit 1
+      - name: API smoke test
+        run: python scripts/smoke_test_api.py http://localhost:8000
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs api
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-report
+          path: reports/gate_report.json

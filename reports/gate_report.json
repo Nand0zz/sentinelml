@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-10-24T11:38:00.277976+00:00",
+  "model_name": "sentinelml-ids",
+  "dry_run": false,
+  "config": {
+    "max_fpr": 0.05,
+    "fpr_slack": 0.01,
+    "min_pr_auc": 0.95,
+    "min_recall": 0.8,
+    "max_latency_ms": 100.0,
+    "max_pr_auc_drop": 0.002,
+    "max_recall_drop": 0.01
+  },
+  "result": {
+    "passed": true,
+    "promoted": true,
+    "candidate_version": "1",
+    "champion_version": null,
+    "checks": [
+      {
+        "name": "fpr_within_budget",
+        "passed": true,
+        "detail": "test FPR 0.0419 <= 0.0600"
+      },
+      {
+        "name": "pr_auc_floor",
+        "passed": true,
+        "detail": "test PR-AUC 0.9928 >= 0.9500"
+      },
+      {
+        "name": "recall_floor",
+        "passed": true,
+        "detail": "test recall 0.8934 >= 0.8000"
+      },
+      {
+        "name": "latency_ceiling",
+        "passed": true,
+        "detail": "latency 17.8 ms <= 100.0 ms"
+      },
+      {
+        "name": "no_pr_auc_regression",
+        "passed": true,
+        "detail": "skipped (no champion yet)"
+      },
+      {
+        "name": "no_recall_regression",
+        "passed": true,
+        "detail": "skipped (no champion yet)"
+      }
+    ],
+    "message": "PASS: v1 promoted to champion."
+  }
+}

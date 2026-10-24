@@ -1,0 +1,15 @@
+.venv
+.git
+.github
+__pycache__
+*.pyc
+.pytest_cache
+data
+tests
+reports
+logs
+mlruns
+mlartifacts
+mlflow.db
+exported_model
+*.egg-info
