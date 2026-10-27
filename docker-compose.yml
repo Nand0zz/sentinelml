@@ -1,0 +1,26 @@
+# EC2 / single-host deployment of the inference API.
+#   docker compose up -d        (scripts/deploy_ec2.sh copies this file + .env to the server and runs it)
+# The image contains no model: on start the container fetches the current champion from the DVC remote
+# into the mounted ./models folder (skipped if that copy is already current), then serves it.
+services:
+  sentinelml-api:
+    image: ${IMAGE:-ghcr.io/nand0zz/sentinelml:latest}
+    container_name: sentinelml-api
+    restart: unless-stopped          # survives crashes and EC2 reboots; stops only on `docker compose down`
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env                         # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION (never committed)
+    environment:
+      MODEL_DIR: /models/champion
+      DVC_REPO_URL: ${DVC_REPO_URL:-https://github.com/Nand0zz/sentinelml}
+      DVC_REV: ${DVC_REV:-main}
+    volumes:
+      - ./models/champion:/models/champion   # model persists across restarts; re-downloaded only when stale
+      - ./logs:/app/logs                      # prediction log (logs/predictions.jsonl)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 180s
+      retries: 3

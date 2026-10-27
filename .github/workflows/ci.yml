@@ -3,6 +3,7 @@ name: ci
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -17,11 +18,14 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
 
-  gate-and-docker:
-    # Exercises the whole release path on synthetic data:
-    # train -> quality gate -> export -> docker build -> run -> API smoke test
+  pipeline-and-image:
+    # Exercises the whole release path on synthetic data (the real data lives in the DVC remote):
+    # preprocess -> train candidate -> quality gate -> docker build -> run -> API smoke test -> push image
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,16 +34,35 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e .
-      - name: Train on synthetic data
-        run: python -m sentinelml.train --synthetic --fast
-      - name: Quality gate (relaxed thresholds, synthetic data is only a plumbing check)
+      - name: Preprocess (same code as the DVC `preprocess` stage, synthetic input)
+        run: python -m sentinelml.preprocess --synthetic
+      - name: Train candidate (same command as the DVC `train` stage)
+        run: python -m sentinelml.train --processed-dir data/processed --model-out models/candidate --fast
+      - name: Quality gate -> champion (relaxed thresholds, synthetic data is only a plumbing check)
         run: python -m sentinelml.gate promote --min-pr-auc 0.90 --fpr-slack 0.05 --max-latency-ms 1000
-      - name: Export champion
-        run: python -m sentinelml.export
-      - name: Build image
-        run: docker build -t sentinelml-api .
-      - name: Run container
-        run: docker run -d --name api -p 8000:8000 -v "$PWD/exported_model:/models/champion:ro" sentinelml-api
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ github.sha }}
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (no model inside)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run container with the champion mounted
+        run: |
+          IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          docker run -d --name api -p 8000:8000 -v "$PWD/models/champion:/models/champion:ro" "$IMAGE"
       - name: Wait for health
         run: |
           for i in $(seq 1 30); do
@@ -48,13 +71,59 @@ jobs:
           done
           docker logs api
           exit 1
-      - name: API smoke test
+      - name: API smoke test (health, model-info, predict, validation, status)
         run: python scripts/smoke_test_api.py http://localhost:8000
       - name: Show container logs on failure
         if: failure()
         run: docker logs api
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push image (tags: commit SHA, branch, latest on the default branch)
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
+            [ -n "$tag" ] && docker push "$tag"
+          done
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: gate-report
-          path: reports/gate_report.json
+          name: pipeline-reports
+          path: |
+            reports/gate_report.json
+            reports/metrics.json
+            reports/confusion_matrix.json
+            models/model_manifest.json
+
+  deploy-ec2:
+    # Runs only on the default branch and only once the EC2 secrets exist in the repo settings.
+    needs: pipeline-and-image
+    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip (EC2 secrets not configured)
+        if: env.EC2_HOST == ''
+        run: echo "Set EC2_HOST, EC2_SSH_KEY, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY to enable deployment."
+      - name: Deploy to EC2
+        if: env.EC2_HOST != ''
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          install -m 600 /dev/null ~/ec2.pem && printf '%s\n' "$EC2_SSH_KEY" > ~/ec2.pem
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):${{ github.sha }}" \
+          EC2_KEY=~/ec2.pem EC2_USER="${EC2_USER:-ec2-user}" \
+          DVC_REPO_URL="https://github.com/${{ github.repository }}" DVC_REV="${{ github.ref_name }}" \
+            bash scripts/deploy_ec2.sh
