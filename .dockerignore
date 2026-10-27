@@ -13,3 +13,8 @@ mlartifacts
 mlflow.db
 exported_model
 *.egg-info
+models
+.dvc
+dvc.yaml
+dvc.lock
+params.yaml
