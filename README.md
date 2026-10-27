@@ -129,7 +129,7 @@ python scripts/smoke_test_api.py http://localhost:8000     # /health, /model-inf
    -> run with the champion mounted -> smoke test. On pushes (not PRs) the image is pushed to **GHCR** as
    `ghcr.io/<owner>/sentinelml:<commit-sha>`, `:<branch>` and `:latest` (default branch). Uses the built-in
    `GITHUB_TOKEN`, no extra secret. Gate thresholds are relaxed because synthetic data only checks the plumbing.
-3. `deploy-ec2` (default branch only): runs `scripts/deploy_ec2.sh` when these repository secrets exist:
+3. `deploy-ec2` (default branch, on push or a manual "Run workflow"): runs `scripts/deploy_ec2.sh` when these repository secrets exist:
    `EC2_HOST`, `EC2_SSH_KEY` (private key), `EC2_USER` (optional), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
    `AWS_DEFAULT_REGION`. Without them the job is skipped.
 

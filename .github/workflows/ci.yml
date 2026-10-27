@@ -102,9 +102,9 @@ jobs:
             models/model_manifest.json
 
   deploy-ec2:
-    # Runs only on the default branch and only once the EC2 secrets exist in the repo settings.
+    # Default branch only (push or manual run), and only once the EC2 secrets exist in the repo settings.
     needs: pipeline-and-image
-    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     env:
       EC2_HOST: ${{ secrets.EC2_HOST }}
