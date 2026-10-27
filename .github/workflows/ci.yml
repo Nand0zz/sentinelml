@@ -84,7 +84,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push image (tags: commit SHA, branch, latest on the default branch)
+      - name: Push image - tagged with commit SHA, branch, and latest on the default branch
         if: github.event_name != 'pull_request'
         run: |
           echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
