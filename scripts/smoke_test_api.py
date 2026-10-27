@@ -26,6 +26,9 @@ def main(base: str) -> int:
     status, body = call(f"{base}/health")
     assert status == 200 and body["status"] == "ok", f"/health failed: {status} {body}"
 
+    status, info = call(f"{base}/model-info")
+    assert status == 200 and 0 < info["threshold"] < 1, f"/model-info failed: {status} {info}"
+
     status, body = call(f"{base}/predict", SAMPLE_FLOW)
     assert status == 200, f"/predict failed: {status}"
     assert 0 <= body["score"] <= 1 and isinstance(body["is_suspicious"], bool)
@@ -34,7 +37,10 @@ def main(base: str) -> int:
     status, _ = call(f"{base}/predict", {**SAMPLE_FLOW, "sbytes": -1})
     assert status == 422, f"invalid input should be rejected with 422, got {status}"
 
-    print(f"OK: model v{body['model_version']} score={body['score']:.4f} "
+    status, st = call(f"{base}/status")
+    assert status == 200 and st["predictions"] >= 1, f"/status failed: {status} {st}"
+
+    print(f"OK: model v{body['model_version']} ({info.get('run_name')}) score={body['score']:.4f} "
           f"suspicious={body['is_suspicious']} latency={body['latency_ms']} ms")
     return 0
 

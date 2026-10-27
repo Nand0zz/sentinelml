@@ -87,3 +87,12 @@ def test_every_prediction_is_logged_with_features(client):
 
 def test_sample_flow_from_docs_is_valid(client):
     assert client.post("/predict", json=SAMPLE_FLOW).status_code == 200
+
+
+def test_status_counts_requests_and_predictions(client):
+    before = client.get("/status").json()
+    client.post("/predict", json=SAMPLE_FLOW)
+    after = client.get("/status").json()
+    assert after["predictions"] == before["predictions"] + 1
+    assert after["requests"] >= before["requests"] + 2
+    assert after["model_name"] == MODEL and after["uptime_seconds"] >= 0

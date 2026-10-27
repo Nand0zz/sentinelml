@@ -186,9 +186,19 @@ def create_app(model_dir: str | None = None, tracking_uri: str | None = None,
     app = FastAPI(
         title="SentinelML API",
         description="Scores network flows as potentially malicious. " + NOTE,
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
     )
+    started = time.time()
+    counters = {"requests": 0, "errors": 0, "predictions": 0}  # per worker process
+
+    @app.middleware("http")
+    async def count_requests(request: Request, call_next):
+        counters["requests"] += 1
+        response = await call_next(request)
+        if response.status_code >= 400:
+            counters["errors"] += 1
+        return response
 
     def _meta(b: Bundle, latency_ms: float) -> dict:
         return {"model_name": b.meta["model_name"], "model_version": str(b.meta["version"]),
@@ -204,6 +214,7 @@ def create_app(model_dir: str | None = None, tracking_uri: str | None = None,
              "batch_size": len(items), "features": {k: _clean_value(v) for k, v in row.items()}}
             for it, row in zip(items, rows)
         ])
+        counters["predictions"] += len(items)
 
     @app.get("/health")
     def health(request: Request):
@@ -219,7 +230,17 @@ def create_app(model_dir: str | None = None, tracking_uri: str | None = None,
             "threshold": b.threshold, "explanation_method": b.explainer.kind,
             "registry_metrics": b.meta.get("metrics", {}), "input_features": cfg.FEATURES,
             "environment": environment_versions(), "note": NOTE,
+            "run_name": b.meta.get("run_name"), "run_id": b.meta.get("run_id"),
         }
+
+    @app.get("/status")
+    def status(request: Request):
+        """Lightweight monitoring: uptime, request/prediction counters, which model is served."""
+        b: Bundle = request.app.state.bundle
+        return {"status": "ok", "uptime_seconds": round(time.time() - started, 1), **counters,
+                "model_name": b.meta["model_name"], "model_version": str(b.meta["version"]),
+                "run_name": b.meta.get("run_name"), "model_source": b.meta.get("source"),
+                "prediction_log": str(log_path)}
 
     @app.post("/predict", response_model=PredictResponse)
     def predict(flow: FlowFeatures, request: Request, explain: bool = Query(True)):
