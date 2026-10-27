@@ -31,6 +31,14 @@ def flow_dict(df: pd.DataFrame, i: int = 0) -> dict:
     return {k: (None if pd.isna(v) else (float(v) if k in cfg.NUMERIC else str(v))) for k, v in row.items()}
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _isolated_root(tmp_path_factory):
+    """Keep tests from overwriting the real reports/ (e.g. gate_report.json) in the repo."""
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(cfg, "ROOT", tmp_path_factory.mktemp("root"))
+        yield
+
+
 @pytest.fixture(scope="module")
 def promoted_registry(tmp_path_factory):
     reg = build_registry(tmp_path_factory.mktemp("api_reg"))
