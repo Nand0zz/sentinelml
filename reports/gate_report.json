@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-24T11:38:00.277976+00:00",
+  "timestamp": "2026-10-27T19:54:15.488647+00:00",
   "model_name": "sentinelml-ids",
   "dry_run": false,
   "config": {
@@ -35,7 +35,7 @@
       {
         "name": "latency_ceiling",
         "passed": true,
-        "detail": "latency 17.8 ms <= 100.0 ms"
+        "detail": "latency 11.6 ms <= 100.0 ms"
       },
       {
         "name": "no_pr_auc_regression",
@@ -48,6 +48,7 @@
         "detail": "skipped (no champion yet)"
       }
     ],
-    "message": "PASS: v1 promoted to champion."
-  }
+    "message": "PASS: v1 (run-20261027-195300) promoted to champion."
+  },
+  "backend": "files"
 }

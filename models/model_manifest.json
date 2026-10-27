@@ -1,0 +1,22 @@
+{
+  "model_name": "sentinelml-ids",
+  "champion_version": "1",
+  "run_id": "3ce78d0155ac492097c39d064d7f1bec",
+  "run_name": "run-20261027-195300",
+  "model_type": "lightgbm",
+  "threshold": 0.15590657185180087,
+  "metrics": {
+    "val_pr_auc": 0.9946616712995228,
+    "test_pr_auc": 0.992799385843116,
+    "test_fpr": 0.04191071428571429,
+    "test_recall": 0.8934146688899876
+  },
+  "artifact_path": "models/champion",
+  "dvc_md5": "0043dba4dd292d643071bccebc430de4.dir",
+  "previous_champion": null,
+  "previous_champion_dvc_md5": null,
+  "promoted_at": "2026-10-27T19:54:17.162336+00:00",
+  "gate_report_path": "reports/gate_report.json",
+  "dvc_tracked": true,
+  "registry_synced": true
+}

@@ -1,0 +1,94 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python -m sentinelml.preprocess --raw-dir data/raw --out-dir 
+      data/processed
+    deps:
+    - path: data/raw/UNSW_NB15_testing-set.csv
+      hash: md5
+      md5: e55caabaa6cd4a8f1c06a227bcfababc
+      size: 32293018
+    - path: data/raw/UNSW_NB15_training-set.csv
+      hash: md5
+      md5: e0beea40262e46168cdb81476dbc27b4
+      size: 15380800
+    - path: src/sentinelml/config.py
+      hash: md5
+      md5: 2c84e5f104c7367a643e3bdc2dfd5e13
+      size: 2616
+    - path: src/sentinelml/data.py
+      hash: md5
+      md5: 22c24f2855e8f15ccba199b5b784ede9
+      size: 3915
+    - path: src/sentinelml/preprocess.py
+      hash: md5
+      md5: 706e48a5a14933c44e8c12218936712c
+      size: 3287
+    outs:
+    - path: data/processed/feature_schema.json
+      hash: md5
+      md5: 8bde537508d7c963d3034e1dca210f9d
+      size: 8809
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 6c33e9c99bbc739d386b11a7d20a2180
+      size: 11492852
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: fff9da6e55552c7442afef95f9420865
+      size: 4967934
+  train:
+    cmd: python -m sentinelml.train --processed-dir data/processed --model-out 
+      models/candidate --experiment sentinelml-training --model-name 
+      sentinelml-ids --max-fpr 0.05 --seed 42
+    deps:
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 6c33e9c99bbc739d386b11a7d20a2180
+      size: 11492852
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: fff9da6e55552c7442afef95f9420865
+      size: 4967934
+    - path: src/sentinelml/data.py
+      hash: md5
+      md5: 22c24f2855e8f15ccba199b5b784ede9
+      size: 3915
+    - path: src/sentinelml/features.py
+      hash: md5
+      md5: 3a256a5f7cf9c388050106b060454095
+      size: 2011
+    - path: src/sentinelml/metrics.py
+      hash: md5
+      md5: 5d06408c89b89b44ceebafe96228c92c
+      size: 1627
+    - path: src/sentinelml/train.py
+      hash: md5
+      md5: 103b55b95a48d9d3bcd29ecd0c485f4d
+      size: 13574
+    params:
+      params.yaml:
+        train:
+          experiment: sentinelml-training
+          model_name: sentinelml-ids
+          model_out: models/candidate
+          max_fpr: 0.05
+          seed: 42
+    outs:
+    - path: models/candidate
+      hash: md5
+      md5: d2f731311e694fa580ed24c8602ae275.dir
+      size: 2756034
+      nfiles: 6
+    - path: reports/confusion_matrix.json
+      hash: md5
+      md5: 5156927340c18d6166764851894f6781
+      size: 221
+    - path: reports/metrics.json
+      hash: md5
+      md5: 58bc2ef6f28cfbe07c8c660c64209e88
+      size: 529
+    - path: reports/model_comparison.csv
+      hash: md5
+      md5: 570f2e8ca8b51480af3d32ac455f0116
+      size: 1228
