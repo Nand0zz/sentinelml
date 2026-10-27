@@ -1,0 +1,4 @@
+# Keep LF line endings on every OS: shell scripts must run inside Linux containers, and
+# DVC hashes source files byte-for-byte (CRLF on Windows would mark every stage as changed).
+* text=auto eol=lf
+*.pem binary
