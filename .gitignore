@@ -5,6 +5,8 @@ __pycache__/
 *.egg-info/
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/.gitignore
+!data/raw/*.dvc
 data/processed/
 mlflow.db
 mlruns/
@@ -12,3 +14,5 @@ mlartifacts/
 .ipynb_checkpoints/
 logs/
 exported_model/
+models/_swap/
+models/*.tmp/
