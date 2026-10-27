@@ -78,3 +78,19 @@ def load_splits(data_dir: str | Path = cfg.RAW_DIR) -> tuple[pd.DataFrame, pd.Da
     train = clean(load_raw(train_path), drop_duplicates=True)
     test = clean(load_raw(test_path), drop_duplicates=False)
     return train, test
+
+
+def load_processed(processed_dir: str | Path = cfg.PROCESSED_DIR) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Cleaned train/test written by the `preprocess` stage (python -m sentinelml.preprocess)."""
+    processed_dir = Path(processed_dir)
+    out = []
+    for name in (cfg.PROCESSED_TRAIN, cfg.PROCESSED_TEST):
+        p = processed_dir / name
+        if not p.exists():
+            raise FileNotFoundError(f"{p} not found. Run: dvc repro preprocess  (or python -m sentinelml.preprocess)")
+        df = pd.read_parquet(p)
+        missing = set(cfg.FEATURES + [cfg.TARGET]) - set(df.columns)
+        if missing:
+            raise ValueError(f"{p} is missing columns: {sorted(missing)}. Re-run preprocessing.")
+        out.append(df[cfg.FEATURES + [cfg.TARGET]])
+    return out[0], out[1]

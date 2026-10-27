@@ -1,0 +1,11 @@
+# Pipeline parameters (read by dvc.yaml; change one and `dvc repro` reruns what depends on it)
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+train:
+  experiment: sentinelml-training   # MLflow experiment; runs are named run-YYYYMMDD-HHMMSS
+  model_name: sentinelml-ids        # MLflow registered model name
+  model_out: models/candidate       # candidate folder consumed by `python -m sentinelml.gate promote`
+  max_fpr: 0.05                     # threshold chosen on validation so that FPR <= this
+  seed: 42

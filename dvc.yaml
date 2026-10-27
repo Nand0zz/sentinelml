@@ -1,0 +1,39 @@
+# Reproducible pipeline:  dvc pull -> dvc repro -> python -m sentinelml.gate promote -> dvc push
+# Promotion is NOT a stage on purpose: it depends on the current champion, so it is an explicit release step.
+stages:
+  preprocess:
+    cmd: python -m sentinelml.preprocess --raw-dir ${data.raw_dir} --out-dir ${data.processed_dir}
+    deps:
+      - ${data.raw_dir}/UNSW_NB15_training-set.csv
+      - ${data.raw_dir}/UNSW_NB15_testing-set.csv
+      - src/sentinelml/preprocess.py
+      - src/sentinelml/data.py
+      - src/sentinelml/config.py
+    outs:
+      - ${data.processed_dir}/train.parquet
+      - ${data.processed_dir}/test.parquet
+      - ${data.processed_dir}/feature_schema.json
+
+  train:
+    cmd: >-
+      python -m sentinelml.train --processed-dir ${data.processed_dir}
+      --model-out ${train.model_out} --experiment ${train.experiment}
+      --model-name ${train.model_name} --max-fpr ${train.max_fpr} --seed ${train.seed}
+    deps:
+      - ${data.processed_dir}/train.parquet
+      - ${data.processed_dir}/test.parquet
+      - src/sentinelml/train.py
+      - src/sentinelml/data.py
+      - src/sentinelml/features.py
+      - src/sentinelml/metrics.py
+    params:
+      - train
+    outs:
+      - ${train.model_out}
+      - reports/model_comparison.csv:
+          cache: false
+    metrics:
+      - reports/metrics.json:
+          cache: false
+      - reports/confusion_matrix.json:
+          cache: false

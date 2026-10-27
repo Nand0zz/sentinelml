@@ -6,6 +6,15 @@ RAW_DIR = ROOT / "data" / "raw"
 TRAIN_FILE = "UNSW_NB15_training-set.csv"
 TEST_FILE = "UNSW_NB15_testing-set.csv"
 
+# --- DVC pipeline artifacts ---
+PROCESSED_DIR = ROOT / "data" / "processed"
+PROCESSED_TRAIN = "train.parquet"
+PROCESSED_TEST = "test.parquet"
+FEATURE_SCHEMA = "feature_schema.json"
+MODELS_DIR = ROOT / "models"            # models/{candidate,champion,previous_champion}/
+MODEL_MANIFEST = "model_manifest.json"  # models/model_manifest.json, committed to git
+MODEL_META = "export_meta.json"         # metadata file inside every model folder
+
 TARGET = "label"  # 0 = benign, 1 = potentially malicious
 
 # attack_cat is derived from the label (leakage); id is a row counter.
@@ -36,7 +45,8 @@ FEATURES = CATEGORICAL + NUMERIC  # model input columns (raw, before engineering
 DEFAULT_MAX_FPR = 0.05  # business constraint: at most 5% of benign flows flagged
 DEFAULT_SEED = 42
 DEFAULT_MODEL_NAME = "sentinelml-ids"
-DEFAULT_EXPERIMENT = "sentinelml-ids"
+DEFAULT_EXPERIMENT = "sentinelml-training"
+RUN_NAME_FORMAT = "run-%Y%m%d-%H%M%S"  # MLflow parent run per training session
 
 # --- Day 2: registry aliases, serving, artifacts ---
 ALIAS_CANDIDATE = "candidate"          # newest model awaiting the quality gate
