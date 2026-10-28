@@ -422,16 +422,20 @@ with tab_monitor:
     h = st.columns([1.3, 1.3, 3])
     src = h[0].segmented_control("Source", ["Live service", "Local log"], default="Live service", key="mon_src")
     window = h[1].select_slider("Window (flows)", [200, 500, 1000, 2000, 5000], value=1000)
+    log_err = None
     if src == "Local log":
         log = load_prediction_log(cfg.PREDICTION_LOG, limit=window)
         st.caption(f"{cfg.PREDICTION_LOG}")
     else:
-        data, err = call_api(api_base, f"/predictions/recent?limit={window}", timeout=30)
-        if err:
-            st.error(f"Cannot read the prediction log from {api_base} ({err}).")
+        data, log_err = call_api(api_base, f"/predictions/recent?limit={window}", timeout=30)
+        if log_err:
+            hint = " The service is running an older build without this endpoint." if log_err == "HTTP 404" else ""
+            st.error(f"Cannot read the prediction log from {api_base} ({log_err}).{hint}")
         log = load_prediction_log(data["records"] if data else [])
 
-    if log.empty:
+    if log_err:
+        pass
+    elif log.empty:
         st.info("No predictions logged yet. Send traffic from the Live service tab.")
     else:
         requests = log.drop_duplicates(["ts", "request_latency_ms"])
