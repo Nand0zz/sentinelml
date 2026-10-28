@@ -1,1 +1,1 @@
--e .[dev,dvc]
+-e .[dev,dvc,dashboard]

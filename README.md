@@ -52,6 +52,7 @@ on a fresh clone after `dvc pull`; the MLflow aliases are kept in sync when the 
 | `GET /health` | liveness + model version |
 | `GET /model-info` | version, alias, run name, threshold, registry metrics, input features |
 | `GET /status` | uptime, request / error / prediction counters, which model is served |
+| `GET /predictions/recent?limit=N` | last N prediction-log entries (monitoring dashboard) |
 | `POST /predict` | one flow -> score, `is_suspicious`, top-5 contributing features, latency |
 | `POST /predict/batch` | up to 500 flows |
 `?explain=false` skips explanations. Inputs are validated (unknown fields and negative numbers -> 422); categoricals are normalised exactly as in training. Every scored flow is appended to `logs/predictions.jsonl` (Day 3 drift monitoring reads it).
@@ -163,6 +164,22 @@ Every prediction is appended to `logs/predictions.jsonl` (mounted to `/opt/senti
 returns uptime and request/error/prediction counters; Docker's health check polls `/health`; uvicorn logs every request
 (`docker logs sentinelml-api`).
 
+## Operations dashboard (Streamlit)
+```bash
+streamlit run dashboard/app.py                                         # from the repo root -> http://localhost:8501
+SENTINELML_API=http://<ec2-public-ip>:8000 streamlit run dashboard/app.py   # point it at the deployment
+```
+| Tab | Shows |
+|---|---|
+| Overview | champion metrics and manifest, release pipeline, quality-gate checks, test confusion matrix, model comparison, feature importance |
+| Live service | `/status` of the running API; score a random test-set flow (score, verdict, top SHAP features); send batches of real flows |
+| What-if analysis | edit a flow's most influential features and watch the score and SHAP contributions change (local champion model) |
+| Monitoring | prediction log from the service (`GET /predictions/recent`) or the local file: score distribution, flagged rate, request latency, and feature drift vs. the training data (PSI + KS per feature) |
+
+Needs `dvc pull` for the local artifacts; without them it falls back to synthetic data. Drift uses PSI
+(<= 0.10 stable, <= 0.25 moderate, above that significant). Traffic sampled from the official UNSW-NB15 test
+split shows drift on purpose: that split is distribution-shifted from the training split.
+
 ## Analysis scripts
 - `python scripts/fpr_sensitivity.py` — recall at FPR budgets of 0.5/1/2/5/10% (does not retrain).
 - `python scripts/eda.py` — EDA report.
@@ -174,4 +191,4 @@ returns uptime and request/error/prediction counters; Docker's health check poll
 - No cross-validation, resampling or calibration; hyperparameters are defaults.
 
 ## Roadmap
-Day 3: PSI/KS drift + latency monitoring from the prediction log, Streamlit dashboard, limitations write-up.
+Done: PSI/KS drift + latency monitoring from the prediction log and the Streamlit dashboard. Next: alerting on drift, scheduled retraining.
