@@ -12,6 +12,7 @@ import logging
 import os
 import threading
 import time
+from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -117,6 +118,12 @@ class PredictionLogger:
         with self._lock, open(self.path, "a", encoding="utf-8") as f:
             for r in records:
                 f.write(json.dumps(r) + "\n")
+
+    def tail(self, n: int) -> list[dict]:
+        if not self.path.exists():
+            return []
+        with self._lock, open(self.path, encoding="utf-8") as f:
+            return [json.loads(line) for line in deque(f, maxlen=n) if line.strip()]
 
 
 def _clean_value(v):
@@ -241,6 +248,12 @@ def create_app(model_dir: str | None = None, tracking_uri: str | None = None,
                 "model_name": b.meta["model_name"], "model_version": str(b.meta["version"]),
                 "run_name": b.meta.get("run_name"), "model_source": b.meta.get("source"),
                 "prediction_log": str(log_path)}
+
+    @app.get("/predictions/recent")
+    def recent_predictions(request: Request, limit: int = Query(1000, ge=1, le=10_000)):
+        """Last `limit` entries of the prediction log, for monitoring and drift checks."""
+        records = request.app.state.logger.tail(limit)
+        return {"count": len(records), "records": records}
 
     @app.post("/predict", response_model=PredictResponse)
     def predict(flow: FlowFeatures, request: Request, explain: bool = Query(True)):

@@ -96,3 +96,11 @@ def test_status_counts_requests_and_predictions(client):
     assert after["predictions"] == before["predictions"] + 1
     assert after["requests"] >= before["requests"] + 2
     assert after["model_name"] == MODEL and after["uptime_seconds"] >= 0
+
+
+def test_recent_predictions_returns_logged_flows(client):
+    client.post("/predict", json=SAMPLE_FLOW)
+    body = client.get("/predictions/recent?limit=3").json()
+    assert 1 <= body["count"] <= 3 and len(body["records"]) == body["count"]
+    assert set(body["records"][-1]["features"]) == set(cfg.FEATURES)
+    assert client.get("/predictions/recent?limit=0").status_code == 422
